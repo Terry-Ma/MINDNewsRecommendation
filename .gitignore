@@ -1,3 +1,15 @@
 data/*
 !data/download.sh
 
+recommenders/
+
+submit/*
+!submit/.gitkeep
+
+test.ipynb
+
+*/train_log/*
+!*/train_log/.gitkeep
+
+*/checkpoint/*
+!*/checkpoint/.gitkeep
