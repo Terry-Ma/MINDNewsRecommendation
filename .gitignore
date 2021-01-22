@@ -1,5 +1,13 @@
-data/*
-!data/download.sh
+data/test/*
+!data/test/.gitkeep
+data/*/train/*
+!data/*/train/.gitkeep
+data/*/val/*
+!data/*/val/.gitkeep
+data/*.zip
+data/news_url
+data/MIND
+data/msn.json
 
 recommenders/
 
