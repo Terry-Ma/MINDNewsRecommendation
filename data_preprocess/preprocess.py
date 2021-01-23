@@ -82,26 +82,12 @@ def transform_words(vocab, nidx2words):
 
     return nidx2widxes, nidx2mask
 
-''' torch iter
-can_nidx: (batch_size)
-user_hist_nidx: (batch_size, hist_seq_len)
-label: (batch_size)
-'''
-
-''' nrms iter
-can_news: (batch_size, news_seq_len)
-can_word_mask: (batch_size, news_seq_len)
-user_hist_news: (batch_size, hist_seq_len, news_seq_len)
-user_hist_word_mask: (batch_size, hist_seq_len, news_seq_len)
-user_hist_news_mask: (batch_size, hist_seq_len)
-'''
-
-def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio):
+def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, batch_size):
     assert data_type in ('train', 'val', 'test')
 
     uid2uidx = {}
     uidx2nids = []
-    uidxs = []
+    uidxes = []
     can_nidxes = []
     labels = []
     cur_uidx = 0
@@ -118,7 +104,7 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio):
                 for impr_nid in impr_nids.split():
                     if data_type == 'val':
                         labels.append(int(impr_nid[-1]))
-                    uidxs.append(uid2uidx[uid])
+                    uidxes.append(uid2uidx[uid])
                     can_nidxes.append(impr_nid.split('-')[0])
             else:   # apply negative sampling to training data
                 pos_nids = []
@@ -129,21 +115,48 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio):
                     else:
                         neg_nids.append(impr_nid.split('-')[0])
                 can_nidxes += pos_nids
-                uidxs += [uid2uidx[uid]] * len(pos_nids)
+                uidxes += [uid2uidx[uid]] * len(pos_nids)
                 labels += [1] * len(pos_nids)
                 neg_nids_num = int(len(pos_nids) * neg_pos_ratio)
-                neg_nid_idxs = random.choices(list(range(len(neg_nids))), k=neg_nids_num)
-                for idx in neg_nid_idxs:
+                neg_nid_idxes = random.choices(list(range(len(neg_nids))), k=neg_nids_num)
+                for idx in neg_nid_idxes:
                     can_nidxes.append(neg_nids[idx])
-                    uidxs.append(uid2uidx[uid])
+                    uidxes.append(uid2uidx[uid])
                     labels.append(0)
+    can_nidxes = torch.tensor(can_nidxes)
+    uidxes = torch.tensor(uidxes)
+    labels = torch.tensor(labels)
+    dataset = torch.utils.data.TensorDataset(can_nidxes, uidxes, labels) if data_type != 'test' else\
+        torch.utils.data.TensorDataset(can_nidxes, uidxes)
+    data_iter = torch.utils.data.DataLoader(dataset, batch_size, shuffle=True) if data_type == 'train' else\
+        torch.utils.data.DataLoader(train, batch_size)
     logger.info('load behavior file {}, data type {}, sample num {}'.\
-        format(behavior_path, data_type, len(uidxs)))
+        format(behavior_path, data_type, len(uidxes)))
 
-    return uidx2nids, can_nidxes, uidxs, labels
+    return uidx2nids, data_iter
 
 def transform_nids(nid2nidx, uidx2nids):
     uidx2nidxes = [[nid2nidx[nid] for nid in nids] for nids in uidx2nids]
     uidx2mask = [[int(nidx == nid2nidx[NewsPAD]) for nidx in nidxes] for nidxes in uidx2nidxes]
 
     return uidx2nidxes, uidx2mask
+
+def load_behavior(nid2nidx, hist_max_len, data_set, neg_pos_ratio, batch_size):
+    train_behavior_path = '{}/data_{}/train/behaviors.tsv'.format(data_path, data_set)
+    val_behavior_path = '{}/data_{}/val/behaviors.tsv'.format(data_path, data_set)
+    test_behavior_path = '{}/test/behaviors.tsv'.format(data_path)
+    # train
+    train_uidx2nids, train_iter = load_behavior_file(\
+        train_behavior_path, hist_max_len, 'train', neg_pos_ratio, batch_size)
+    train_uidx2nidxes, train_uidx2mask = transform_nids(nid2nidx, train_uidx2nids)
+    # val
+    val_uidx2nids, val_iter = load_behavior_file(
+        val_behavior_path, hist_max_len, 'val', neg_pos_ratio, batch_size)
+    val_uidx2nidxes, val_uidx2mask = transform_nids(nid2nidx, val_uidx2nids)
+    # test
+    test_uidx2nids, test_iter = load_behavior_file(
+        test_behavior_path, hist_max_len, 'test', neg_pos_ratio, batch_size)
+    test_uidx2nidxes, test_uidx2mask = transform_nids(nid2nidx, test_uidx2nids)
+
+    return train_uidx2nidxes, train_uidx2mask, train_iter, val_uidx2nidxes, val_uidx2mask, val_iter, \
+        test_uidx2nidxes, test_uidx2mask, test_iter

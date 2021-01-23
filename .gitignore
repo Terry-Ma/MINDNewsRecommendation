@@ -21,3 +21,6 @@ test.ipynb
 
 */checkpoint/*
 !*/checkpoint/.gitkeep
+
+__pycache__
+*/__pycache__
