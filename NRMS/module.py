@@ -1,9 +1,93 @@
 import torch
 import logging
 import math
+import numpy as np
 
 from torch import nn
 from torch.nn.functional import softmax
+
+class NRMS(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.news_encoder = NewsEncoder(
+            vocab_size=config['model']['vocab_size'],
+            embed_size=config['model']['embed_size'],
+            news_seq_len=config['preprocess']['news_max_len'],
+            hidden_size=config['model']['hidden_size'],
+            attention_head_num=config['model']['attention_head_num'],
+            attention_size=config['model']['attention_size']
+            )
+        self.user_encoder = UserEncoder(
+            hist_seq_len=config['preprocess']['hist_max_len'],
+            hidden_size=config['model']['hidden_size'],
+            attention_head_num=config['model']['attention_head_num'],
+            attention_size=config['model']['attention_size']
+            )
+
+    def forward(self, can_news, can_word_mask, user_hist_news, user_hist_word_mask, user_hist_news_mask):
+        '''
+        Args:
+            can_news: (batch_size, news_seq_len)
+            can_word_mask: (batch_size, news_seq_len)
+            user_hist_news: (batch_size, hist_seq_len, news_seq_len)
+            user_hist_word_mask: (batch_size, hist_seq_len, news_seq_len)
+            user_hist_news_mask: (batch_size, hist_seq_len)
+        Returns:
+            scores: (batch_size, 1)
+        '''
+        can_news_embedding = self.news_encoder(can_news, can_word_mask)  # (batch_size, hidden_size)
+        batch_size, _, news_seq_len = user_hist_news.shape
+        user_hist_news = user_hist_news.view(-1, news_seq_len)  # (batch_size * hist_seq_len, news_seq_len)
+        user_hist_news_embedding = self.news_encoder(user_hist_news, user_hist_word_mask).\
+            view(batch_size, -1, hidden_size)  # (batch_size, hist_seq_len, hidden_size)
+        user_embedding = self.user_encoder(user_hist_news_embedding, user_hist_news_mask)  # (batch_size, hidden_size)
+        scores = (can_news_embedding * user_embedding).sum(dim=1).unsqueeze(1)  # (batch_size, 1)
+
+        return scores
+
+class UserEncoder(nn.Module):
+    def __init__(self, hist_seq_len, hidden_size, attention_head_num, attention_size):
+        super().__init__()
+        self.pos_encoding = generate_pos_encoding(hidden_size, hist_seq_len)
+        self.self_attention = SelfAttention(embed_size, hidden_size, attention_head_num)
+        self.attention = Attention(hidden_size, attention_size)
+    
+    def forward(self, input, input_mask):
+        '''
+        Args:
+            input: (batch_size, hist_seq_len, hidden_size)
+            input_mask: (batch_size, his_seq_len)
+        Returns:
+            output: (batch_size, hidden_size)
+        '''
+        input += self.pos_encoding   # (batch_size, his_seq_len, hidden_size)
+        self_att_output = self.self_attention(input, input_mask)
+        output = self.attention(self_att_output, input_mask)
+
+        return output
+
+class NewsEncoder(nn.Module):
+    def __init__(self, vocab_size, embed_size, news_seq_len, hidden_size, attention_head_num, attention_size):
+        super().__init__()
+        self.word_embedding = nn.Embedding(vocab_size, embed_size)
+        self.pos_encoding_weight = generate_pos_encoding(embed_size, news_seq_len)
+        self.pos_encoding = generate_pos_encoding(embed_size, news_seq_len)  # ()
+        self.self_attention = SelfAttention(embed_size, hidden_size, attention_head_num)
+        self.attention = Attention(hidden_size, attention_size)
+    
+    def forward(self, input, input_mask):
+        '''
+        Args:
+            input: (batch_size, seq_len)
+            input_mask: (batch_size, seq_len)
+        Returns:
+            output: (batch_size, hidden_size)
+        '''
+        input = self.word_embedding(input) + self.pos_encoding
+        self_att_output = self.self_attention(input, input_mask)
+        output = self.attention(self_att_output, input_mask)
+
+        return output
 
 class SelfAttention(nn.Module):
     def __init__(self, embed_size, hidden_size, attention_head_num):
@@ -27,7 +111,8 @@ class SelfAttention(nn.Module):
         Q = self.query(input).view(batch_size, seq_len, -1, self.attention_head_size).permute(0, 2, 1, 3)
         K = self.key(input).view(batch_size, seq_len, -1, self.attention_head_size).permute(0, 2, 3, 1)  # transpose
         V = self.value(input).view(batch_size, seq_len, -1, self.attention_head_size).permute(0, 2, 1, 3)
-        weight = torch.matmul(Q, K) / math.sqrt(self.attention_head_size)   # (batch_size, attention_head_num, seq_len, seq_len)
+        # weight: (batch_size, attention_head_num, seq_len, seq_len)
+        weight = torch.matmul(Q, K) / math.sqrt(self.attention_head_size)
         input_mask = input_mask.repeat(self.attention_head_num, 1).view(-1, batch_size, seq_len).permute(1, 0, 2)
         input_mask *= -1e9
         weight += input_mask.unsqueeze(dim=2)
@@ -35,7 +120,6 @@ class SelfAttention(nn.Module):
         output = torch.matmul(weight, V).permute(0, 2, 1, 3).contiguous().view(batch_size, seq_len, -1)
 
         return output
-
 
 class Attention(nn.Module):
     def __init__(self, input_size, attention_size):
@@ -62,15 +146,23 @@ class Attention(nn.Module):
 
         return output
 
+def generate_pos_encoding(embed_size, seq_len):
+    pos_encoding = np.array(
+        [[pos / np.power(10000, 2 * (i // 2) / hidden_size) for i in range(embed_size)]\
+            for pos in range(seq_len)])
+    pos_encoding[:, 0::2] = np.sin(pos_encoding[:, 0::2])
+    pos_encoding[:, 0::2] = np.cos(pos_encoding[:, 0::2])
+    pos_encoding = torch.from_numpy(pos_encoding).unsqueeze(0)  # (1, seq_len, embed_size)
+
+    return pos_encoding
 
 if __name__ == '__main__':
-    import numpy as np
-
     batch_size = 2
     seq_len = 3
     embed_size = hidden_size = input_size = 8
     attention_head_num = 4
     attention_size = 8
+
     self_attention = SelfAttention(embed_size, hidden_size, attention_head_num)
     input = torch.rand(batch_size, seq_len, embed_size)
     input_mask = torch.tensor(np.random.randint(low=0, high=2, size=(batch_size, seq_len)), dtype=torch.float)

@@ -1,10 +1,17 @@
 preprocess:
-  max_len: 1024
-  min_freq: 5
-  vocab_path: '../data/rnn.vocab'
+  news_file: 'news_clean.tsv'   # 'news_clean.tsv' & 'news_bpe_{num_operation}.tsv'
+  data_set: 'small'   # 'large' & 'small' & 'demo'
+  use_abstract: 1
+  use_body: 1
+  news_max_len: 1024
+  word_min_freq: 100
+  vocab_path: '../data/nrms.vocab'
+  hist_max_len: 20
+  neg_pos_ratio: 3
   is_demo: 0
 
 model:
+  vocab_size: 0   # generate
   embed_size: 256
   hidden_size: 256
   attention_head_num: 8
