@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES='0' python ../../main.py --batch_size 8 --lr 0.0003 --warmup_steps 200 --train_steps 1000 --steps_per_check 100 --steps_per_checkpoint 200 --experiment_name 'nrms'

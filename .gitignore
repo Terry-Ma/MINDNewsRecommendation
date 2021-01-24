@@ -8,6 +8,7 @@ data/*.zip
 data/news_url
 data/MIND
 data/msn.json
+data/*.vocab
 
 recommenders/
 
@@ -19,8 +20,12 @@ test.ipynb
 */train_log/*
 !*/train_log/.gitkeep
 
-*/checkpoint/*
-!*/checkpoint/.gitkeep
+*/*/checkpoint/*
+!*/*/checkpoint/.gitkeep
 
 __pycache__
 */__pycache__
+*/*/__pycache__
+
+NN/*/train_log/tensorboard/*
+!NN/*/train_log/tensorboard/.gitkeep

@@ -5,8 +5,11 @@ import sys
 sys.path.append('../')
 
 from utils import *
-from model import *
+from NN.model import NNModel
 
+name2model = {
+    'NRMS': NNModel
+    }
 logger = logging.getLogger()
 
 if __name__ == '__main__':
@@ -26,5 +29,5 @@ if __name__ == '__main__':
     # checkpoint
     checkpoint_process(config['train']['checkpoint_path'])
     # train
-    model = Model(config)
+    model = name2model[config['model']['model_name']](config)
     model.train()

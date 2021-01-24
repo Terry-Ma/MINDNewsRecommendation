@@ -85,8 +85,15 @@ def get_hist_news_num(impr_path):
 def hist_impr_news_num():
     train_hist_news_nums, train_impr_news_nums, train_impr_news_pos_nums = \
         get_hist_news_num('./data/data_large/train/behaviors.tsv')
+    val_hist_news_nums, val_impr_news_nums, val_impr_news_pos_nums = \
+        get_hist_news_num('./data/data_large/val/behaviors.tsv')
     test_hist_news_nums, test_impr_news_nums, test_impr_news_pos_nums = \
         get_hist_news_num('./data/test/behaviors.tsv')
+    print('train total sample num {}, val total sample num {}, test total sample num {}'.format(
+        train_impr_news_nums.sum(),
+        val_impr_news_nums.sum(),
+        test_impr_news_nums.sum()
+        ))
     for i in range(50, 110, 10):
         print('{}%, train: hist num {}, impr nums {}, impr pos nums {}; test: hist num {}, impr nums {}'.format(
             i,
@@ -131,6 +138,6 @@ if __name__ == '__main__':
         # vocab_size(news_file)
         # text_length(news_file)
     
-    # hist_impr_news_num()
+    hist_impr_news_num()
 
-    hist_news_change()
+    # hist_news_change()
