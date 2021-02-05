@@ -221,8 +221,8 @@ class NNModel:
                     cur_impr_ranks = [i[1] for i in cur_impr_scores]
                     f.write('{} {}\n'.format(cur_iid, cur_impr_ranks))
                     # state update
-                    cur_impr_scores = []
-                    cur_iid += 1
                     batch_scores_idx += test_iid2num[cur_iid] - len(cur_impr_scores)
+                    cur_impr_scores = []
+                    cur_iid += 1        
                 cur_impr_scores += list(batch_scores[batch_scores_idx:].numpy())
         logging.info('successfully generating submit {}'.format(self.config['train']['submit_path']))

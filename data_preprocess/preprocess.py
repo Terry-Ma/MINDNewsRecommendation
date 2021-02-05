@@ -174,3 +174,4 @@ if __name__ == '__main__':
         '../data/test/behaviors.tsv', 32, 'test', 3, nid2nidx, 512)
     print(test_iid2num[:5])
     print(len(test_iid2num))
+    print(sum(test_iid2num))
