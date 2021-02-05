@@ -18,9 +18,12 @@ class NNOptimizer:
                 )
         # init lr scheduler
         if config['train']['lr_decay']:
-            lr_lambda = lambda step: min(step / config['train']['warmup_steps'], \
-                (config['train']['train_steps'] - step) / \
-                    (config['train']['train_steps'] - config['train']['warmup_steps']))
+            if config['train']['warmup_steps'] != 0:
+                lr_lambda = lambda step: min(step / config['train']['warmup_steps'], \
+                    (config['train']['train_steps'] - step) / \
+                        (config['train']['train_steps'] - config['train']['warmup_steps']))
+            else:
+                lr_lambda = lambda step: (config['train']['train_steps'] - step) / config['train']['train_steps']
             self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
                 optimizer=self.optimizer,
                 lr_lambda=lr_lambda

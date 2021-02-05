@@ -6,7 +6,7 @@ preprocess:
   news_max_len: 1024
   word_min_freq: 100
   vocab_path: '../../data/nrms.vocab'
-  hist_max_len: 20
+  hist_max_len: 64
   neg_pos_ratio: 3
   is_demo: 0
 
@@ -18,7 +18,7 @@ model:
   hidden_size: 256
   attention_head_num: 8
   attention_size: 256
-  dropout: 1.0
+  dropout: 0.0
 
 train:
   batch_size: 128

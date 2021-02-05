@@ -60,7 +60,7 @@ def load_news_file(news_path, use_abstract, use_body, news_max_len, nid2nidx, ni
 def generate_vocab(nidx2words, train_nidx, word_min_freq, vocab_path):
     if os.path.exists(vocab_path):
         vocab = torch.load(vocab_path)
-        logger.info('load existing vocab {}'.format(vocab_path))
+        logger.info('load existing vocab {}, vocab_size {}'.format(vocab_path, len(vocab)))
     else:
         word2freq = defaultdict(int)
         for nidx in range(train_nidx):
@@ -70,7 +70,7 @@ def generate_vocab(nidx2words, train_nidx, word_min_freq, vocab_path):
             del word2freq[PAD]
         vocab = Vocab(Counter(word2freq), min_freq=word_min_freq, specials=[UNK, PAD])
         torch.save(vocab, vocab_path)
-        logger.info('generate vocab and save: {}'.format(vocab_path))
+        logger.info('generate vocab and save: {}, vocab size {}'.format(vocab_path, len(vocab)))
     
     return vocab
 
@@ -87,17 +87,17 @@ def load_behavior(nid2nidx, hist_max_len, data_set, neg_pos_ratio, batch_size):
     val_behavior_path = '{}/data_{}/val/behaviors.tsv'.format(data_path, data_set)
     test_behavior_path = '{}/test/behaviors.tsv'.format(data_path)
     # train
-    train_uidx2nidxes, train_uidx2mask, train_iter = load_behavior_file(
+    train_uidx2nidxes, train_uidx2mask, train_iter, _ = load_behavior_file(
         train_behavior_path, hist_max_len, 'train', neg_pos_ratio, nid2nidx, batch_size)
     # val
-    val_uidx2nidxes, val_uidx2mask, val_iter = load_behavior_file(
+    val_uidx2nidxes, val_uidx2mask, val_iter, _ = load_behavior_file(
         val_behavior_path, hist_max_len, 'val', neg_pos_ratio, nid2nidx, batch_size)
     # test
-    test_uidx2nidxes, test_uidx2mask, test_iter = load_behavior_file(
+    test_uidx2nidxes, test_uidx2mask, test_iter, test_iid2num = load_behavior_file(
         test_behavior_path, hist_max_len, 'test', neg_pos_ratio, nid2nidx, batch_size)
 
     return train_uidx2nidxes, train_uidx2mask, train_iter, val_uidx2nidxes, val_uidx2mask, val_iter, \
-        test_uidx2nidxes, test_uidx2mask, test_iter
+        test_uidx2nidxes, test_uidx2mask, test_iter, test_iid2num
 
 def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, nid2nidx, batch_size):
     assert data_type in ('train', 'val', 'test')
@@ -107,6 +107,7 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, ni
     uidxes = []
     can_nids = []
     labels = []
+    iid2num = [0]  # impr_id begin from 1
     cur_uidx = 0
     with open(behavior_path, encoding='utf-8') as f:
         for line in f:
@@ -118,11 +119,15 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, ni
                     hist_nids + [NewsPAD] * (hist_max_len - len(hist_nids)))
                 cur_uidx += 1
             if data_type != 'train':
+                num = 0
                 for impr_nid in impr_nids.split():
                     if data_type == 'val':
                         labels.append(int(impr_nid[-1]))
                     uidxes.append(uid2uidx[uid])
                     can_nids.append(impr_nid.split('-')[0])
+                    num += 1
+                if data_type == 'test':
+                    iid2num.append(num)
             else:   # apply negative sampling to training data
                 pos_nids = []
                 neg_nids = []
@@ -150,7 +155,7 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, ni
     logger.info('load behavior file {}, data type {}, sample num {}'.\
         format(behavior_path, data_type, len(uidxes)))
 
-    return uidx2nidxes, uidx2mask, data_iter
+    return uidx2nidxes, uidx2mask, data_iter, iid2num
 
 def transform_nids(nid2nidx, can_nids, uidx2nids):
     can_nidxes = [nid2nidx[nid] for nid in can_nids]
@@ -161,3 +166,11 @@ def transform_nids(nid2nidx, can_nids, uidx2nids):
     uidx2mask = torch.tensor(uidx2mask)
 
     return can_nidxes, uidx2nidxes, uidx2mask
+
+if __name__ == '__main__':
+    data_path = '../data/'
+    nid2nidx, _, _ = load_news('news_clean.tsv', 'large', 0, 0, 16)
+    test_uidx2nidxes, test_uidx2mask, test_iter, test_iid2num = load_behavior_file(
+        '../data/test/behaviors.tsv', 32, 'test', 3, nid2nidx, 512)
+    print(test_iid2num[:5])
+    print(len(test_iid2num))

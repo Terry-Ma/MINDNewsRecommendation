@@ -128,6 +128,23 @@ def hist_news_change():
         len([uid for uid in test_uid2nids if len(test_uid2nids[uid]) == 1])
         ))
 
+def impr_id_change():
+    with open('./data/test/behaviors.tsv', encoding='utf-8') as f:
+        pre_impr_id = 0
+        pre_uid = 0
+        impr_id_mistake_num = 0
+        uid_mistake_num = 0
+        for line in f:
+            impr_id, uid, _, _, _ = line.replace('\n', '').split('\t')
+            impr_id = int(impr_id)
+            if impr_id != pre_impr_id + 1:
+                impr_id_mistake_num += 1
+            if uid == pre_uid:
+                uid_mistake_num += 1
+            pre_uid = uid
+            pre_impr_id = impr_id
+    print('impr id mistake num {}, uid mistake num {}'.format(impr_id_mistake_num, uid_mistake_num))
+
 if __name__ == '__main__':
     # news_files = [
     #     'news_clean.tsv',
@@ -138,6 +155,8 @@ if __name__ == '__main__':
         # vocab_size(news_file)
         # text_length(news_file)
     
-    hist_impr_news_num()
+    # hist_impr_news_num()
 
     # hist_news_change()
+
+    impr_id_change()

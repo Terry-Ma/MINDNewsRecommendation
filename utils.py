@@ -42,7 +42,7 @@ def generate_config(args):
             if not find_k:
                 config['train'][key] = value
     config['train']['checkpoint_path'] = './checkpoint/{}/'.format(args.experiment_name)
-    config['train']['submit_path'] = '../submit/{}.csv'.format(args.experiment_name)
+    config['train']['submit_path'] = '../../submit/{}.csv'.format(args.experiment_name)
     config['train']['tb_path'] = './train_log/tensorboard/{}/'.format(args.experiment_name)
     logger.info('will use config \n{}'.format(config))
 
