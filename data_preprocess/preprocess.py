@@ -107,7 +107,7 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, ni
     uidxes = []
     can_nids = []
     labels = []
-    iid2num = [0]  # impr_id begin from 1
+    iid2num = [0]  # impr_id start from 1
     cur_uidx = 0
     with open(behavior_path, encoding='utf-8') as f:
         for line in f:

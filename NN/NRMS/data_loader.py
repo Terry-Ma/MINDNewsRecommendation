@@ -101,11 +101,13 @@ class NRMSDataLoader:
 
         return user_hist_news, user_hist_word_mask, user_hist_news_mask
     
-    def val_inference(self):
+    def val_inference(self, model):
+        self.generate_embedding(model)
         for can_nidxes, uidxes, labels in self.val_iter:
             yield self.batch_inference(can_nidxes, uidxes, self.val_uidx2embed), labels
 
-    def test_inference(self):
+    def test_inference(self, model):
+        self.generate_embedding(model)
         for can_nidxes, uidxes in self.test_iter:
             yield self.batch_inference(can_nidxes, uidxes, self.test_uidx2embed)
 

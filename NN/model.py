@@ -104,12 +104,11 @@ class NNModel:
                     check_train_auc = roc_auc_score(check_train_y, check_train_pred_y)
                     # val auc
                     with torch.no_grad():
-                        self.data_loader.generate_embedding(self.model)
                         check_val_loss = 0
                         check_val_steps = 0
                         check_val_ys = []
                         check_val_pred_ys = []
-                        for batch_pred_y, batch_y in self.data_loader.val_inference():
+                        for batch_pred_y, batch_y in self.data_loader.val_inference(self.model):
                             check_val_ys.append(np.array(batch_y))
                             # check val steps & loss & pred_y
                             batch_pred_y = torch.cat((torch.zeros(batch_pred_y.shape[0], 1), \
@@ -200,29 +199,28 @@ class NNModel:
             logger.info('load best model')
             cpt_dict = torch.load(cpt_path)
             self.model.load_state_dict(cpt_dict['model'])
-        # generate embedding
-        logger.info('start generating embedding')
         self.model.eval()
-        with torch.no_grad():
-            self.data_loader.generate_embedding(self.model)
         test_iid2num = self.data_loader.get_test_iid2num()
         cur_iid = 1
         cur_impr_scores = []
         logger.info('start writing submit file')
         with open(self.config['train']['submit_path'], encoding='utf-8', mode='w') as f:
-            for batch_scores in self.data_loader.test_inference():
+            for batch_scores in self.data_loader.test_inference(self.model):
                 batch_scores_idx = 0
-                while batch_scores_idx + test_iid2num[cur_iid] - len(cur_impr_scores) <= batch_scores.shape[0]:
+                while cur_iid < len(test_iid2num) and \
+                    batch_scores_idx + test_iid2num[cur_iid] - len(cur_impr_scores) <= batch_scores.shape[0]:
                     # write
-                    cur_impr_scores += list(batch_scores[
-                        batch_scores_idx:batch_scores_idx + test_iid2num[cur_iid] - len(cur_impr_scores)].numpy())
+                    next_batch_scores_idx = batch_scores_idx + test_iid2num[cur_iid] - len(cur_impr_scores)
+                    cur_impr_scores += list(batch_scores[batch_scores_idx:next_batch_scores_idx].numpy())
                     cur_impr_scores = [[cur_impr_scores[i], i] for i in range(len(cur_impr_scores))]
                     cur_impr_scores = sorted(cur_impr_scores, key=lambda x: x[0], reverse=True)
-                    cur_impr_ranks = [i[1] for i in cur_impr_scores]
-                    f.write('{} {}\n'.format(cur_iid, cur_impr_ranks))
+                    cur_impr_ranks = [0] * len(cur_impr_scores)
+                    for i in range(len(cur_impr_scores)):
+                        cur_impr_ranks[cur_impr_scores[i][1]] = i + 1
+                    f.write('{} {}\n'.format(cur_iid, str(cur_impr_ranks).replace(' ', '')))
                     # state update
-                    batch_scores_idx += test_iid2num[cur_iid] - len(cur_impr_scores)
+                    batch_scores_idx = next_batch_scores_idx
                     cur_impr_scores = []
-                    cur_iid += 1        
+                    cur_iid += 1
                 cur_impr_scores += list(batch_scores[batch_scores_idx:].numpy())
         logging.info('successfully generating submit {}'.format(self.config['train']['submit_path']))
