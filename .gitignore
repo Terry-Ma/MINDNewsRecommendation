@@ -30,3 +30,5 @@ __pycache__
 NN/*/train_log/tensorboard/*
 !NN/*/train_log/tensorboard/.gitkeep
 */*/train_log/*.log
+
+.vscode

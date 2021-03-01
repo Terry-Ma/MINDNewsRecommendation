@@ -94,7 +94,7 @@ class NewsEncoder(nn.Module):
     def __init__(self, vocab_size, embed_size, news_seq_len, hidden_size, attention_head_num, attention_size, dropout):
         super().__init__()
         self.word_embedding = nn.Embedding(vocab_size, embed_size)
-        self.pos_encoding = generate_pos_encoding(embed_size, news_seq_len)
+        self.pos_encoding = generate_pos_encoding(embed_size, news_seq_len) # (1, seq_len, embed_size)
         self.dropout1 = nn.Dropout(p=dropout)
         self.self_attention = SelfAttention(embed_size, hidden_size, attention_head_num)
         self.dropout2 = nn.Dropout(p=dropout)
@@ -110,7 +110,7 @@ class NewsEncoder(nn.Module):
         '''
         input = self.word_embedding(input) + self.pos_encoding
         input = self.dropout1(input)
-        self_att_output = self.self_attention(input, input_mask)
+        self_att_output = self.self_attention(input, input_mask) # (batch_size, seq_len, hidden_size)
         self_att_output = self.dropout2(self_att_output)
         output = self.attention(self_att_output, input_mask)
 

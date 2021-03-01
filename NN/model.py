@@ -108,7 +108,9 @@ class NNModel:
                         check_val_steps = 0
                         check_val_ys = []
                         check_val_pred_ys = []
-                        for batch_pred_y, batch_y in self.data_loader.val_inference(self.model):
+                        val_infer_iter = self.data_loader.val_inference(\
+                            self.model if torch.cuda.device_count() <= 1 else self.model.module)
+                        for batch_pred_y, batch_y in val_infer_iter:
                             check_val_ys.append(np.array(batch_y))
                             # check val steps & loss & pred_y
                             batch_pred_y = torch.cat((torch.zeros(batch_pred_y.shape[0], 1), \
@@ -205,7 +207,9 @@ class NNModel:
         cur_impr_scores = []
         logger.info('start writing submit file')
         with open(self.config['train']['submit_path'], encoding='utf-8', mode='w') as f:
-            for batch_scores in self.data_loader.test_inference(self.model):
+            test_infer_iter = self.data_loader.test_inference(\
+                self.model if torch.cuda.device_count() <= 1 else self.model.module)
+            for batch_scores in test_infer_iter:
                 batch_scores_idx = 0
                 while cur_iid < len(test_iid2num) and \
                     batch_scores_idx + test_iid2num[cur_iid] - len(cur_impr_scores) <= batch_scores.shape[0]:

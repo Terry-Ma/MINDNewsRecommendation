@@ -105,7 +105,7 @@ def load_behavior_file(behavior_path, hist_max_len, data_type, neg_pos_ratio, ni
     uid2uidx = {}
     uidx2nids = []
     uidxes = []
-    can_nids = []
+    can_nids = []  # impression & candidate nids
     labels = []
     iid2num = [0]  # impr_id start from 1
     cur_uidx = 0
