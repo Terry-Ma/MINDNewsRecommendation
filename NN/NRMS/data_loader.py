@@ -51,36 +51,37 @@ class NRMSDataLoader:
                 }
 
     def generate_embedding(self, model):
-        # generate nidx2embed & uidx2embed
-        device = next(model.parameters()).device
-        batch_size = self.config['train']['batch_size']
-        nid_num = len(self.nid2nidx)
-        val_uid_num = self.val_uidx2nidxes.shape[0]
-        test_uid_num = self.test_uidx2nidxes.shape[0]
-        self.nidx2embed = torch.rand(nid_num, self.config['model']['hidden_size'])
-        self.val_uidx2embed = torch.rand(val_uid_num, self.config['model']['hidden_size'])
-        self.test_uidx2embed = torch.rand(test_uid_num, self.config['model']['hidden_size'])
-        # nidx2embed
-        for nidx in range(0, nid_num, batch_size):
-            nidxes = torch.tensor(list(range(nidx, min(nidx + batch_size, nid_num))))
-            news, word_mask = self.process_nidxes(nidxes)
-            self.nidx2embed[nidx:min(nidx + batch_size, nid_num), :] = \
-                model.news2embed(news.to(device), word_mask.to(device)).to('cpu')
-        # uidx2embed
-        for uidx2embed, uidx2nidxes, uidx2mask in zip(
-            [self.val_uidx2embed, self.test_uidx2embed],
-            [self.val_uidx2nidxes, self.test_uidx2nidxes],
-            [self.val_uidx2mask, self.test_uidx2mask]
-            ):
-            uid_num = uidx2embed.shape[0]
-            for uidx in range(0, uid_num, batch_size):
-                uidxes = torch.tensor(list(range(uidx, min(uidx + batch_size, uid_num))))
-                user_hist_news, user_hist_word_mask, user_hist_news_mask = \
-                    self.process_uidxes(uidxes, uidx2nidxes, uidx2mask)
-                uidx2embed[uidx:min(uidx + batch_size, uid_num), :] = model.user2embed(
-                    user_hist_news.to(device),
-                    user_hist_word_mask.to(device),
-                    user_hist_news_mask.to(device)).to('cpu')
+        with torch.no_grad():
+            # generate nidx2embed & uidx2embed
+            device = next(model.parameters()).device
+            batch_size = self.config['train']['batch_size']
+            nid_num = len(self.nid2nidx)
+            val_uid_num = self.val_uidx2nidxes.shape[0]
+            test_uid_num = self.test_uidx2nidxes.shape[0]
+            self.nidx2embed = torch.rand(nid_num, self.config['model']['hidden_size'])
+            self.val_uidx2embed = torch.rand(val_uid_num, self.config['model']['hidden_size'])
+            self.test_uidx2embed = torch.rand(test_uid_num, self.config['model']['hidden_size'])
+            # nidx2embed
+            for nidx in range(0, nid_num, batch_size):
+                nidxes = torch.tensor(list(range(nidx, min(nidx + batch_size, nid_num))))
+                news, word_mask = self.process_nidxes(nidxes)
+                self.nidx2embed[nidx:min(nidx + batch_size, nid_num), :] = \
+                    model.news2embed(news.to(device), word_mask.to(device)).to('cpu')
+            # uidx2embed
+            for uidx2embed, uidx2nidxes, uidx2mask in zip(
+                [self.val_uidx2embed, self.test_uidx2embed],
+                [self.val_uidx2nidxes, self.test_uidx2nidxes],
+                [self.val_uidx2mask, self.test_uidx2mask]
+                ):
+                uid_num = uidx2embed.shape[0]
+                for uidx in range(0, uid_num, batch_size):
+                    uidxes = torch.tensor(list(range(uidx, min(uidx + batch_size, uid_num))))
+                    user_hist_news, user_hist_word_mask, user_hist_news_mask = \
+                        self.process_uidxes(uidxes, uidx2nidxes, uidx2mask)
+                    uidx2embed[uidx:min(uidx + batch_size, uid_num), :] = model.user2embed(
+                        user_hist_news.to(device),
+                        user_hist_word_mask.to(device),
+                        user_hist_news_mask.to(device)).to('cpu')
     
     def process_nidxes(self, nidxes):
         news = self.nidx2widxes[nidxes]  # (batch_size, news_seq_len)
